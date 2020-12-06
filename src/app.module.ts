@@ -1,12 +1,16 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
 import * as Joi from 'joi';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './users/users.module';
 import { User } from './users/entities/user.entity';
-import { Restaurant } from './restaurants/entities/restaurant.entity';
-import { RestaurantModule } from './restaurants/restaurants.module';
+import { JwtModule } from './jwt/jwt.module';
+import { JwtMiddleware } from './jwt/jwt.middleware';
+import { CommonModule } from './common/common.module';
+import { AuthModule } from './auth/auth.module';
+import { Verification } from './users/entities/verification.entity';
+import { MailModule } from './mail/mail.module';
 
 
 @Module({
@@ -22,6 +26,10 @@ import { RestaurantModule } from './restaurants/restaurants.module';
         DB_USERNAME: Joi.string().required(),
         DB_PASSWORD: Joi.string().required(),
         DB_NAME: Joi.string().required(),
+        PRIVATE_KEY: Joi.string().required(),
+        MAILGUN_API_KEY: Joi.string().required(),
+        MAILGUN_DOMAIN_NAME: Joi.string().required(),
+        MAILGUN_FROM_EMAIL: Joi.string().required(),
       }),
     }),
     TypeOrmModule.forRoot({
@@ -33,15 +41,30 @@ import { RestaurantModule } from './restaurants/restaurants.module';
       database: process.env.DB_NAME,       
       synchronize: process.env.NODE_ENV !== 'prod',
       logging: process.env.NODE_ENV !== 'prod',
-      entities: [User, Restaurant]
+      entities: [User, Verification]
     }),
     GraphQLModule.forRoot({
       autoSchemaFile: true,
+      context: ({ req }) => ({ user: req['user']})
     }),    
+    JwtModule.forRoot({
+      privateKey: process.env.PRIVATE_KEY,
+    }),
+    MailModule.forRoot({
+      apiKey: process.env.MAILGUN_API_KEY,
+      domain: process.env.MAILGUN_DOMAIN_NAME,
+      fromEmail: process.env.MAILGUN_FROM_EMAIL
+    }),
     UserModule,
-    RestaurantModule,
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(JwtMiddleware).forRoutes({
+      path:'/graphql',
+      method: RequestMethod.ALL,
+    });
+  }
+}
