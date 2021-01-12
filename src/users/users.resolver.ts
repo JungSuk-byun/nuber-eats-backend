@@ -9,17 +9,13 @@ import { User } from "./entities/user.entity";
 import { UserService } from "./users.service";
 import { EditProfileInput, EditProfileOutput } from "./dtos/editProfile.dto";
 import { VerifyEmailInput, VerifyEmailOutput } from "./dtos/verify-email.dto";
+import { Role } from "src/auth/role.decorator";
 
 @Resolver(of => User)
 export class UserResolver {
   constructor(
     private readonly userService: UserService
   ) {}
-
-  @Query(returns => [User])
-  getAllUsers(): Promise <User[]> {
-    return this.userService.getAllUsers();
-  }
 
   @Mutation(returns => CreateAccountOutput)
   async createAccount(
@@ -34,18 +30,18 @@ export class UserResolver {
   }
 
   @Query(returns => User) 
-  @UseGuards(AuthGuard)
+  @Role(['Any'])
   me(@AuthUser() authUser: User) {
     return authUser;
   }
 
-  @UseGuards(AuthGuard)
+  @Role(['Any'])
   @Query(returns => UerProfileOutput)
   async userProfile(@Args() userProfileInput: UserProfileInput): Promise<UerProfileOutput> {
     return this.userService.findById(userProfileInput.userId);
   }
 
-  @UseGuards(AuthGuard)
+  @Role(['Any'])
   @Mutation(returns => EditProfileOutput)
   async editProfile(
     @AuthUser() authUser: User,

@@ -1,39 +1,60 @@
 import { Field, InputType, ObjectType } from "@nestjs/graphql";
-import { IsBoolean, IsOptional, IsString, Length } from "class-validator";
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { IsString, Length } from "class-validator";
+import { CoreEntity } from "src/common/entities/core.entity";
+import { Order } from "src/orders/entities/order.entity";
+import { User } from "src/users/entities/user.entity";
+import { Column, Entity, ManyToOne, OneToMany, RelationId } from "typeorm";
+import { Category } from "./category.entity";
+import { Dish } from "./dish.entity";
 
-@InputType({ isAbstract: true})
+@InputType('RestaurantInputType', { isAbstract: true})
 @ObjectType()
 @Entity()
-export class Restaurant {
-  @PrimaryGeneratedColumn()
-  @Field(type => Number)
-  id: number;
-
+export class Restaurant extends CoreEntity {
   @Field(type => String) 
-  @Column()
+  @Column({ unique: true })
   @IsString()
   @Length(5, 15)
   name: string;
 
-  @Field(type => Boolean, { nullable: true }) 
-  @Column({ default: true })
-  @IsOptional()
-  @IsBoolean()
-  isVegan: boolean;
+  @Field(type => String)
+  @Column()
+  @IsString()
+  coverImg: string;
 
   @Field(type => String) 
   @Column()
   @IsString()
   address: string;
 
-  @Field(type => String) 
-  @Column()
-  @IsString()
-  ownerName: string;
+  @Field(type => Category, { nullable: true })
+  @ManyToOne(
+    type => Category, 
+    catagory => catagory.restaurants, 
+    { nullable: true, onDelete: 'SET NULL', eager: true }
+  )
+  category: Category;
 
-  @Field(type => String) 
-  @Column()
-  @IsString()
-  categryName: string;
+  @Field(type => User)
+  @ManyToOne(type => User, user => user.restaurants, { onDelete: 'CASCADE' })
+  owner: User;
+
+  @RelationId((restaurant: Restaurant) => restaurant.owner) 
+  ownerId: number;
+
+  @Field(type => [Dish])
+  @OneToMany(type => Dish, dish => dish.restaurant)
+  menu: Dish[];
+
+  @Field(type => [Order])
+  @OneToMany(type => Order, order => order.restaurant)
+  orders: Order[];
+
+  @Field(type => Boolean)
+  @Column({ default: false })
+  isPromoted: boolean;
+
+  @Field(type => Date, { nullable: true })
+  @Column({ nullable: true })
+  promotedUntil: Date;
 }

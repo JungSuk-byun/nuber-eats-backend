@@ -38,10 +38,6 @@ export class UserService {
     }
   }
 
-  getAllUsers(): Promise<User[]> {
-    return this.users.find();
-  }
-
   async login({ email, password}: LoginInput): Promise<{ ok: boolean, error?: string, token?: string}> {
     try {
       const user = await this.users.findOne({ email }, { select: ['id', 'password']});
@@ -70,10 +66,15 @@ export class UserService {
 
   async editProfile(userId: number, {email, password}: EditProfileInput):Promise<EditProfileOutput> {
     try {
-      const user = await this.users.findOne(userId);
+      const exists = await this.users.findOne({ email });
+      if (exists) {
+        return {ok: false, error: 'This email already exists.'};
+      }
+      const user = await this.users.findOne(userId);      
       if (email) {
         user.email = email;
         user.verified = false;
+        await this.verifications.delete({ user: {id: user.id } });
         const verification = await this.verifications.save(this.verifications.create({ user }));
         this.mailService.sendVerificationEmail(user.email, verification.code);
       }
@@ -98,7 +99,7 @@ export class UserService {
       }
       return { ok: false, error: "Verification not found."};
     } catch (error) {
-      return { ok: false, error };
+      return { ok: false, error: "Could not verify email." };
     }
   }
   
